@@ -1,0 +1,67 @@
+services:
+  redis:
+    image: redis:alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - beckn_network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  onix-bap:
+    image: fidedocker/onix-adapter:latest
+    container_name: onix-bap
+    platform: linux/amd64
+    networks:
+      - beckn_network
+    ports:
+      - "8081:8081"
+    environment:
+      CONFIG_FILE: "/app/config/local-simple-bap.yaml"
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: root
+      REDIS_ADDR: redis:6379
+      RABBITMQ_ADDR: rabbitmq:5672
+      RABBITMQ_USER: admin
+      RABBITMQ_PASS: admin123
+    volumes:
+      - ./config:/app/config
+      - ./schemas:/app/schemas
+    command: [ "./server", "--config=/app/config/local-simple-bap.yaml" ]
+
+  loca-lt:
+    image: node:20-alpine
+    container_name: loca-lt
+    profiles:
+      - localtunnel
+    networks:
+      - beckn_network
+    depends_on:
+      - onix-bap
+    volumes:
+      - ./config:/app/config:ro
+    command:
+      - sh
+      - -c
+      - |
+        SUBDOMAIN=$$(node <<'NODE'
+        const fs = require('fs');
+        const content = fs.readFileSync('/app/config/loca_lt_config.yaml', 'utf8');
+        const match = content.match(/^\s*subdomain\s*:\s*["']?([^"'\n#]+)["']?/m);
+        if (match) console.log(match[1].trim());
+        NODE
+        )
+        if [ -z "$$SUBDOMAIN" ]; then
+          echo "Missing subdomain in /app/config/loca_lt_config.yaml" >&2
+          exit 1
+        fi
+        npx -y localtunnel --port 8081 --local-host onix-bap --subdomain "$$SUBDOMAIN"
+
+networks:
+  beckn_network:
+    name: beckn_network
+    driver: bridge
