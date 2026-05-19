@@ -237,7 +237,11 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
 fi
 
 TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
-BACKUP_FILE="config/local-simple-bap.${TIMESTAMP}.bak"
+
+BACKUP_DIR="config/backup"
+mkdir -p "$BACKUP_DIR"
+
+BACKUP_FILE="${BACKUP_DIR}/local-simple-bap.${TIMESTAMP}.bak"
 
 cp "$CONFIG_FILE" "$BACKUP_FILE"
 
