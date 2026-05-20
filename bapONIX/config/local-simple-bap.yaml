@@ -76,8 +76,6 @@ modules:
           id: cache
           config:
             addr: redis:6379
-        signValidator:
-          id: signvalidator
         router:
           id: router
           config:
@@ -88,7 +86,6 @@ modules:
               uuidKeys: transaction_id,message_id
               role: bap
       steps:
-        - validateSign
         - addRoute
         - validateSchema
   
